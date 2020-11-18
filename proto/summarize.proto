@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package stalin;
+
+service HelloService {
+    // Request -> Request
+    rpc Square (SquareRequest) returns (SquareResponse);
+
+    // Stream -> Request
+    rpc Sum (stream SumRequest) returns (SumResponse);
+
+    // Request -> Stream
+    rpc EchoWithDelay (EchoRequest) returns (stream EchoResponse);
+
+    // Stream -> Stream
+    rpc ContinuousSum (stream SumRequest) returns (stream SumResponse);
+}
+message EchoRequest {
+    string message = 1;
+    int32 delay = 2;
+}
+message EchoResponse {
+    string message = 1;
+}
+message SumRequest {
+    int32 value = 1;
+}
+message SumResponse {
+    int32 result = 1;
+}
+message SquareRequest {
+    int32 value = 1;
+}
+message SquareResponse {
+    int32 result = 1;
+}
