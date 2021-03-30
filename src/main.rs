@@ -6,6 +6,7 @@ use tonic::{Request, Response, Status, Streaming, transport::Server};
 use stalin::{EchoRequest, EchoResponse, SquareRequest, SquareResponse, SumRequest, SumResponse};
 use stalin::hello_service_server::{HelloService, HelloServiceServer};
 
+mod inference;
 mod stalin;
 
 #[derive(Default)]
