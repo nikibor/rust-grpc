@@ -21,15 +21,18 @@ fn get_token() -> String {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = "output.wav";
-    let content_u8 = std::fs::read(Path::new(path)).unwrap();
+    let mut content_u8 = std::fs::read(Path::new(path)).unwrap();
 
-    let content = vec![80000].iter().map(|x| *x as u8).collect::<Vec<u8>>();
-    let content_i32 = vec![160000].iter().map(|x| *x as u8).collect::<Vec<u8>>();
+    let content_len = content_u8.len() / 2;
+    println!("Len: {:?}", content_len);
+    let diff = 80000 - content_u8.len();
+    if diff > 0 {
+        for i in 0..diff {
+            content_u8.push(0);
+        }
+    }
+    assert_eq!(content_u8.len(), 80000);
 
-    println!("{:?}", content_u8.len());
-
-    let content_u32 = content_u8.iter().map(|x| *x as u32).collect::<Vec<u32>>();
-    let content_i32 = content_u8.iter().map(|x| *x as i32).collect::<Vec<i32>>();
 
     let channel = tonic::transport::Channel::from_static("http://[::1]:8001")
         .connect()
@@ -95,8 +98,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }],
         raw_input_contents: vec![
-            content.clone(),
-            content.len().to_be_bytes().to_vec()
+            content_u8.clone(),
+            vec![content_u8.len() as u8]
         ],
     }])).await?.into_inner();
     while let Some(res) = response.message().await? {
@@ -119,14 +122,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             InferInputTensor {
                 name: "PCM".to_string(),
                 datatype: "INT16".to_string(),
-                shape: vec![80000],
+                shape: vec![-1, 8000],
                 parameters: Default::default(),
                 contents: None,
             },
             InferInputTensor {
                 name: "NUM_OF_SAMPLES".to_string(),
                 datatype: "INT32".to_string(),
-                shape: vec![-1, 1],
+                shape: vec![1, 1],
                 parameters: Default::default(),
                 contents: None,
             }
@@ -138,8 +141,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }],
         raw_input_contents: vec![
-            content.clone(),
-            content.len().to_be_bytes().to_vec()
+            content_u8.clone(),
+            vec![content_len as u8]
         ],
     }).await?.into_inner();
     println!("{:?}", response);
