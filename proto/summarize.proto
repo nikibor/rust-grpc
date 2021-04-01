@@ -29,7 +29,7 @@ syntax = "proto3";
 package inference;
 
 //@@.. cpp:namespace:: inference
-//import "api/stalin/model_config.proto";
+//import "model_config.proto";
 
 //@@
 //@@.. cpp:var:: service InferenceService

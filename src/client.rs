@@ -4,10 +4,12 @@ use futures::stream::iter;
 // use stalin::hello_service_client::{HelloServiceClient};
 use tonic::Request;
 use inference::grpc_inference_service_client::GrpcInferenceServiceClient;
-use crate::inference::{ModelInferRequest, ModelInferResponse, InferTensorContents, InferParameter};
+use crate::inference::{ModelInferRequest, ModelInferResponse, InferTensorContents, InferParameter, ModelStatisticsRequest, ModelMetadataRequest, SystemSharedMemoryStatusRequest, ModelReadyRequest};
 use crate::inference::model_infer_request::{InferInputTensor, InferRequestedOutputTensor};
 use std::collections::HashMap;
+
 use crate::inference::infer_parameter::ParameterChoice;
+use std::path::Path;
 
 // mod stalin;
 mod inference;
@@ -18,164 +20,128 @@ fn get_token() -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // let cert = include_str!("../client.pem");
-    // let key = include_str!("../client.key");
-    // let id = tonic::transport::Identity::from_pem(cert.as_bytes(), key.as_bytes());
-    // let s = include_str!("../my_ca.pem");
-    // let ca = tonic::transport::Certificate::from_pem(s.as_bytes());
-    // let tls = tonic::transport::ClientTlsConfig::new().domain_name("localhost").identity(id).ca_certificate(ca);
+    // let path = "/home/nikita/qqq23Mar3/9ec52f6d-e4f2-4fd3-9d80-3ac07ef663ed-d198_309-0.wav";
+    let content_u8 = std::fs::read(Path::new(path)).unwrap();
+
+    let content = vec![160000].iter().map(|x| *x as u8).collect::<Vec<u8>>();
+    let content_i32 = vec![160000].iter().map(|x| *x as u8).collect::<Vec<u8>>();
+
+    println!("{:?}", content_u8.len());
+
+    let content_u32 = content_u8.iter().map(|x| *x as u32).collect::<Vec<u32>>();
+    let content_i32 = content_u8.iter().map(|x| *x as i32).collect::<Vec<i32>>();
+
     let channel = tonic::transport::Channel::from_static("http://[::1]:8001")
-        // .tls_config(tls)
         .connect()
         .await?;
-    // let token = get_token();
     let mut client = GrpcInferenceServiceClient::new(channel);
 
-    // let mut client = HelloServiceClient::with_interceptor(channel, move |mut req: Request<()>| {
-    //     req.metadata_mut().insert(
-    //         "authorization",
-    //         tonic::metadata::MetadataValue::from_str(&token).unwrap(),
-    //     );
-    //     Ok(req)
-    // });
-
-    /*
-     SQUARE
-     Request -> Request
-     */
-    // let request = tonic::Request::new(inference::ServerLiveRequest{});
-    // let response = client.server_live(request).await.into_iter();
-    // println!("RESPONSE={:?}", response);
-
-    /*
-    ECHO DELAY
-    Request -> Stream
-     */
-    // let request = tonic::Request::new(EchoRequest{ message: "QWERTY".to_string(), delay: 5 });
-    // let mut response = client.echo_with_delay(request).await?.into_inner();
-    // while let Some(res) = response.message().await? {
-    //     println!("{}", res.message);
-    // }
-
-    /*
-    SUM
-    Stream -> Request
-     */
-    // let request = tonic::Request::new(iter(vec![
-    //     SumRequest { value: 2 },
-    //     SumRequest { value: 2 }
-    // ]));
-    // let response = client.sum(request).await?.into_inner();
-    // println!("SUM = {:?}", response.result);
-
-    /*
-    ContinuousSum
-    Stream -> Stream
-     */
-
     let mut output_parameters: HashMap<String, InferParameter> = HashMap::new();
-    output_parameters.insert("data_type".to_string(), InferParameter { parameter_choice: Some(ParameterChoice::Int64Param(6)) });
+    output_parameters.insert(
+        "data_type".to_string(),
+        InferParameter {
+            parameter_choice: Some(ParameterChoice::StringParam("TYPE_FP32".to_string()))
+        },
+    );
+    output_parameters.insert(
+        "dims".to_string(),
+        InferParameter {
+            parameter_choice: Some(ParameterChoice::Int64Param(6))
+        },
+    );
+    output_parameters.insert(
+        "label_filename".to_string(),
+        InferParameter {
+            parameter_choice: Some(ParameterChoice::StringParam("languages.txt".to_string()))
+        },
+    );
+    output_parameters.insert(
+        "is_shape_tensor".to_string(),
+        InferParameter {
+            parameter_choice: Some(ParameterChoice::BoolParam(false))
+        },
+    );
 
     let request = tonic::Request::new(iter(vec![
         ModelInferRequest {
             model_name: "encdeclanglabel".to_string(),
-            model_version: "-1".to_string(),
-            id: "12345".to_string(),
-            parameters: Default::default(),
+            model_version: "1".to_string(),
+            id: "12312312312".to_string(),
+            parameters: HashMap::new(),
             inputs: vec![
                 InferInputTensor {
                     name: "PCM".to_string(),
                     datatype: "TYPE_INT16".to_string(),
-                    shape: vec![9],
+                    shape: vec![1, 80000],
                     parameters: Default::default(),
-                    contents: Some(InferTensorContents {
-                        bool_contents: vec![],
-                        int_contents: vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                        int64_contents: vec![],
-                        uint_contents: vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                        uint64_contents: vec![],
-                        fp32_contents: vec![],
-                        fp64_contents: vec![],
-                        byte_contents: vec![],
-                    }),
+                    contents: None
+                    // contents: Some(InferTensorContents {
+                    //     bool_contents: vec![],
+                    //     int_contents: content,
+                    //     int_contents: content_i32.clone(),
+                        // int64_contents: vec![],
+                        // uint_contents: vec![],
+                        // uint_contents: content_u32.clone(),
+                        // uint64_contents: vec![],
+                        // fp32_contents: vec![],
+                        // fp64_contents: vec![],
+                        // byte_contents: vec![],
+                        // byte_contents: vec![content_u8.clone()],
+                    // }),
                 },
                 InferInputTensor {
                     name: "NUM_OF_SAMPLES".to_string(),
                     datatype: "TYPE_INT32".to_string(),
                     shape: vec![1],
                     parameters: Default::default(),
-                    contents: Some(InferTensorContents {
-                        bool_contents: vec![],
-                        int_contents: vec![1],
-                        int64_contents: vec![],
-                        uint_contents: vec![1],
-                        uint64_contents: vec![],
-                        fp32_contents: vec![],
-                        fp64_contents: vec![],
-                        byte_contents: vec![],
-                    }),
+                    contents: None
+                    // contents: Some(InferTensorContents {
+                    //     bool_contents: vec![],
+                    //     int_contents: vec![content_u32.len().clone() as i32],
+                    //     int64_contents: vec![content_u32.len().clone() as i64],
+                    //     uint_contents: vec![content_u32.len().clone() as u32],
+                    //     uint64_contents: vec![content_u32.len().clone() as u64],
+                    //     // int_contents: vec![],
+                    //     // int64_contents: vec![],
+                    //     // uint_contents: vec![],
+                    //     // uint64_contents: vec![],
+                    //     fp32_contents: vec![],
+                    //     fp64_contents: vec![],
+                    //     byte_contents: vec![],
+                    // }),
                 }
             ],
             outputs: vec![{
-                InferRequestedOutputTensor { name: "DECODER_LOGITS".to_string(), parameters: output_parameters.clone() }
-            }],
-            raw_input_contents: vec![
-                vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-            ],
-        },
-        ModelInferRequest {
-            model_name: "encdeclanglabel".to_string(),
-            model_version: "-1".to_string(),
-            id: "12323456745".to_string(),
-            parameters: Default::default(),
-            inputs: vec![
-                InferInputTensor {
-                    name: "PCM".to_string(),
-                    datatype: "TYPE_INT16".to_string(),
-                    shape: vec![9],
+                InferRequestedOutputTensor {
+                    name: "DECODER_LOGITS".to_string(),
                     parameters: Default::default(),
-                    contents: Some(InferTensorContents {
-                        bool_contents: vec![],
-                        int_contents: vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                        int64_contents: vec![],
-                        uint_contents: vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                        uint64_contents: vec![],
-                        fp32_contents: vec![],
-                        fp64_contents: vec![],
-                        byte_contents: vec![],
-                    }),
-                },
-                InferInputTensor {
-                    name: "NUM_OF_SAMPLES".to_string(),
-                    datatype: "TYPE_INT32".to_string(),
-                    shape: vec![1],
-                    parameters: Default::default(),
-                    contents: Some(InferTensorContents {
-                        bool_contents: vec![],
-                        int_contents: vec![1],
-                        int64_contents: vec![],
-                        uint_contents: vec![1],
-                        uint64_contents: vec![],
-                        fp32_contents: vec![],
-                        fp64_contents: vec![],
-                        byte_contents: vec![],
-                    }),
                 }
-            ],
-            outputs: vec![{
-                InferRequestedOutputTensor { name: "DECODER_LOGITS".to_string(), parameters: output_parameters.clone() }
             }],
             raw_input_contents: vec![
-                vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
-                vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
             ],
         },
     ]));
+    let response = client.model_statistics(ModelStatisticsRequest {
+        name: "encdeclanglabel".to_string(),
+        version: "1".to_string(),
+    }).await?.into_inner();
+    println!("{:?}", response);
+
+
+    let response = client.model_metadata(ModelMetadataRequest {
+        name: "encdeclanglabel".to_string(),
+        version: "1".to_string(),
+    }).await?.into_inner();
+    println!("{:?}", response);
+
+    let response = client.model_ready(ModelReadyRequest {
+        name: "encdeclanglabel".to_string(),
+        version: "1".to_string(),
+    }).await?.into_inner();
+    println!("{:?}", response);
+    println!();
+    println!("###");
+    println!();
     let mut response = client.model_stream_infer(request).await?.into_inner();
     while let Some(res) = response.message().await? {
         match res.infer_response {
@@ -183,22 +149,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{:?}", res.error_message);
             }
             Some(data) => {
-                println!("{:?}", data);
+                println!("DATA:: {:?}", data);
             }
         }
     }
-
-    // let request = tonic::Request::new(iter(vec![
-    //     SumRequest { value: 1 },
-    //     SumRequest { value: 2 },
-    //     SumRequest { value: 3 },
-    //     SumRequest { value: 4 },
-    //     SumRequest { value: 5 }
-    // ]));
-    // let mut response = client.continuous_sum(request).await?.into_inner();
-    // while let Some(res) = response.message().await? {
-    //     println!("{:?}", res.result);
-    // }
 
     Ok(())
 }
